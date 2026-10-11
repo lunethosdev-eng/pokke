@@ -1,6 +1,7 @@
 package com.poke.music.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,8 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -25,29 +24,24 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Banner
+        // Banner suave (sin degradado fuerte)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF8B5CF6), Color(0xFFEC4899))
-                    )
-                )
+                .height(120.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer)
         )
 
-        // Avatar overlapping banner
         Box(
             modifier = Modifier
-                .offset(y = (-40).dp)
+                .offset(y = (-36).dp)
                 .padding(horizontal = 20.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(72.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center
             ) {
                 Text("P", style = MaterialTheme.typography.headlineMedium)
@@ -68,15 +62,14 @@ fun ProfileScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // Badge placeholder
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFF8B5CF6).copy(alpha = 0.2f)
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Text(
                     "Owner",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    color = Color(0xFFA78BFA),
+                    color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelMedium
                 )
             }
@@ -87,21 +80,22 @@ fun ProfileScreen(
                 headlineContent = { Text("Ajustes") },
                 leadingContent = { Icon(Icons.Default.Settings, null) }
             )
+
+            // UNA sola opción de cerrar sesión
             ListItem(
                 headlineContent = { Text("Cerrar sesión") },
-                leadingContent = { Icon(Icons.Default.Logout, null) },
-                modifier = Modifier,
+                leadingContent = {
+                    Icon(
+                        Icons.Default.Logout,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                },
                 colors = ListItemDefaults.colors(
                     headlineColor = MaterialTheme.colorScheme.error
-                )
+                ),
+                modifier = Modifier.clickable { onLogout() }
             )
-            // Make logout clickable properly later
-            Button(
-                onClick = onLogout,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("Cerrar sesión")
-            }
         }
     }
 }
