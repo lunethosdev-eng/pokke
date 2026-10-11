@@ -1,0 +1,17 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.ap_
+*.aab
+app/build/
+*.jks
+# Keep keystore for now in this private package, but normally ignore it:
+# *.keystore
+# *.jks
