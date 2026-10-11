@@ -3,7 +3,6 @@ package com.poke.music.data.remote
 import com.poke.music.BuildConfig
 import com.poke.music.data.model.SearchResponse
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -18,18 +17,12 @@ interface MusicApi {
 }
 
 object MusicApiClient {
-    // Base URL can be changed later from Admin Panel (stored in preferences)
     @Volatile
     var baseUrl: String = BuildConfig.MUSIC_API_BASE
-
-    private val logging = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BASIC
-    }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
-        .addInterceptor(logging)
         .build()
 
     fun create(): MusicApi {
