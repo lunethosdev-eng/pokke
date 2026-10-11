@@ -21,22 +21,32 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode keystore
+      - name: Prepare keystore
         run: |
-          echo "${{ secrets.POKKE_KEYSTORE_BASE64 }}" | base64 -d > pokke-release.keystore
-        # If you prefer to commit the keystore (not recommended for public repos),
-        # you can skip this step and keep the file in the repo.
+          if [ -n "${{ secrets.POKKE_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.POKKE_KEYSTORE_BASE64 }}" | base64 -d > pokke-release.keystore
+            echo "Keystore decoded from secret"
+          elif [ -f pokke-release.keystore ]; then
+            echo "Using keystore already in the repository"
+          else
+            echo "ERROR: No keystore found"
+            exit 1
+          fi
+          ls -la pokke-release.keystore
+          file pokke-release.keystore || true
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
       - name: Build Release APK
         env:
-          POKKE_STORE_PASSWORD: ${{ secrets.POKKE_STORE_PASSWORD }}
-          POKKE_KEY_PASSWORD: ${{ secrets.POKKE_KEY_PASSWORD }}
-        run: |
-          chmod +x gradlew || true
-          ./gradlew assembleRelease --no-daemon
+          POKKE_STORE_PASSWORD: ${{ secrets.POKKE_STORE_PASSWORD || 'pokke2026secure' }}
+          POKKE_KEY_PASSWORD: ${{ secrets.POKKE_KEY_PASSWORD || 'pokke2026secure' }}
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Pokke-release
           path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
