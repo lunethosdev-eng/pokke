@@ -6,25 +6,17 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.poke.music.data.model.Song
+import com.poke.music.data.repository.AuthRepository
 import com.poke.music.ui.screens.auth.LoginScreen
 import com.poke.music.ui.screens.auth.RegisterScreen
 import com.poke.music.ui.screens.home.HomeScreen
@@ -39,110 +31,114 @@ sealed class Screen(val route: String) {
     data object Search : Screen("search")
     data object Library : Screen("library")
     data object Profile : Screen("profile")
-    data object Player : Screen("player/{songId}") {
-        fun create(songId: String) = "player/$songId"
-    }
-    data object Admin : Screen("admin")
 }
 
-data class BottomNavItem(
-    val screen: Screen,
-    val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
-)
-
-private val bottomItems = listOf(
-    BottomNavItem(Screen.Home, "Inicio", Icons.Filled.Home, Icons.Outlined.Home),
-    BottomNavItem(Screen.Search, "Buscar", Icons.Filled.Search, Icons.Outlined.Search),
-    BottomNavItem(Screen.Library, "Biblioteca", Icons.Filled.LibraryMusic, Icons.Outlined.LibraryMusic),
-    BottomNavItem(Screen.Profile, "Perfil", Icons.Filled.Person, Icons.Outlined.Person)
-)
-
 @Composable
-fun PokkeNavGraph(
-    startDestination: String = Screen.Login.route // Change to Home when auth is ready
-) {
+fun PokkeNavGraph(authRepository: AuthRepository) {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
+    var currentSong by remember { mutableStateOf<Song?>(null) }
+    val start = if (authRepository.session != null) Screen.Home.route else Screen.Login.route
 
-    val showBottomBar = bottomItems.any { item ->
-        currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
-    }
+    val bottomRoutes = listOf(Screen.Home.route, Screen.Search.route, Screen.Library.route, Screen.Profile.route)
+    val navBackStack by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStack?.destination?.route
+    val showBottom = currentRoute in bottomRoutes
 
     Scaffold(
         bottomBar = {
-            if (showBottomBar) {
+            if (showBottom) {
                 NavigationBar {
-                    bottomItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any {
-                            it.route == item.screen.route
-                        } == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(item.screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    if (selected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label
-                                )
-                            },
-                            label = { Text(item.label) }
-                        )
-                    }
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.Home.route,
+                        onClick = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Home, null) },
+                        label = { Text("Inicio") }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.Search.route,
+                        onClick = {
+                            navController.navigate(Screen.Search.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Search, null) },
+                        label = { Text("Buscar") }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.Library.route,
+                        onClick = {
+                            navController.navigate(Screen.Library.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.LibraryMusic, null) },
+                        label = { Text("Biblioteca") }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Screen.Profile.route,
+                        onClick = {
+                            navController.navigate(Screen.Profile.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(Icons.Default.Person, null) },
+                        label = { Text("Perfil") }
+                    )
                 }
             }
         }
-    ) { innerPadding ->
+    ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding)
+            startDestination = start,
+            modifier = Modifier.padding(padding)
         ) {
             composable(Screen.Login.route) {
                 LoginScreen(
-                    onLoginSuccess = {
+                    authRepository = authRepository,
+                    onSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     },
-                    onNavigateToRegister = {
-                        navController.navigate(Screen.Register.route)
-                    }
+                    onGoRegister = { navController.navigate(Screen.Register.route) }
                 )
             }
             composable(Screen.Register.route) {
                 RegisterScreen(
-                    onRegisterSuccess = {
+                    authRepository = authRepository,
+                    onSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     },
-                    onNavigateToLogin = {
-                        navController.popBackStack()
-                    }
+                    onGoLogin = { navController.popBackStack() }
                 )
             }
             composable(Screen.Home.route) {
-                HomeScreen()
+                HomeScreen(onSongClick = { currentSong = it })
             }
             composable(Screen.Search.route) {
-                SearchScreen()
+                SearchScreen(onSongClick = { currentSong = it })
             }
             composable(Screen.Library.route) {
                 LibraryScreen()
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    authRepository = authRepository,
                     onLogout = {
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
