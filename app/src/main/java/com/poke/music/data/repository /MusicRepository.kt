@@ -1,95 +1,81 @@
 package com.poke.music.data.repository
 
-import android.content.Context
-import com.poke.music.data.model.DownloadProgress
-import com.poke.music.data.model.SearchResponse
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.poke.music.data.model.Song
-import com.poke.music.data.remote.MusicApiClient
+import com.poke.music.data.remote.SupabaseConfig
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.File
-import java.io.FileOutputStream
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
-class MusicRepository(private val context: Context) {
+class MusicRepository {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .build()
+    private val gson = Gson()
 
-    private val api get() = MusicApiClient.create()
-    private val downloadClient = OkHttpClient()
-
-    private val _downloadProgress = MutableStateFlow<DownloadProgress?>(null)
-    val downloadProgress: Flow<DownloadProgress?> = _downloadProgress.asStateFlow()
-
-    /**
-     * Search songs.
-     * The Cloudflare endpoint already checks the database first and only
-     * downloads on-demand when the song is missing.
-     */
-    suspend fun search(query: String): Result<List<Song>> = withContext(Dispatchers.IO) {
+    suspend fun getCatalog(limit: Int = 50): Result<List<Song>> = withContext(Dispatchers.IO) {
         try {
-            val response = api.search(query.trim())
-            Result.success(response.results)
+            val url = "${SupabaseConfig.UKIYO_URL}/rest/v1/songs?select=*&order=created_at.desc&limit=$limit"
+            val req = Request.Builder()
+                .url(url)
+                .addHeader("apikey", SupabaseConfig.UKIYO_ANON)
+                .addHeader("Authorization", "Bearer ${SupabaseConfig.UKIYO_ANON}")
+                .get()
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return@withContext Result.failure(Exception("HTTP ${resp.code}"))
+                val body = resp.body?.string().orEmpty()
+                val type = object : TypeToken<List<Song>>() {}.type
+                val list: List<Song> = gson.fromJson(body, type) ?: emptyList()
+                Result.success(list)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Download a song to internal storage (or user-chosen path later).
-     * Emits progress 0-100.
-     */
-    suspend fun downloadSong(
-        song: Song,
-        destinationDir: File? = null
-    ): Result<File> = withContext(Dispatchers.IO) {
+    suspend fun searchLocal(query: String): Result<List<Song>> = withContext(Dispatchers.IO) {
         try {
-            val dir = destinationDir ?: File(context.filesDir, "music").also { it.mkdirs() }
-            val fileName = "${song.youtubeId ?: song.id}.mp3"
-            val outFile = File(dir, fileName)
-
-            if (outFile.exists() && outFile.length() > 0) {
-                _downloadProgress.value = DownloadProgress(song.id, 100, true)
-                return@withContext Result.success(outFile)
+            val q = URLEncoder.encode("%$query%", "UTF-8")
+            val url =
+                "${SupabaseConfig.UKIYO_URL}/rest/v1/songs?or=(title.ilike.$q,artist.ilike.$q)&select=*&limit=30"
+            val req = Request.Builder()
+                .url(url)
+                .addHeader("apikey", SupabaseConfig.UKIYO_ANON)
+                .addHeader("Authorization", "Bearer ${SupabaseConfig.UKIYO_ANON}")
+                .get()
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return@withContext Result.failure(Exception("HTTP ${resp.code}"))
+                val body = resp.body?.string().orEmpty()
+                val type = object : TypeToken<List<Song>>() {}.type
+                val list: List<Song> = gson.fromJson(body, type) ?: emptyList()
+                Result.success(list)
             }
-
-            val request = Request.Builder().url(song.audioUrl).build()
-            downloadClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}")
-                }
-                val body = response.body ?: throw Exception("Empty body")
-                val total = body.contentLength()
-                var downloaded = 0L
-
-                body.byteStream().use { input ->
-                    FileOutputStream(outFile).use { output ->
-                        val buffer = ByteArray(8 * 1024)
-                        var read: Int
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                            downloaded += read
-                            val percent = if (total > 0) {
-                                ((downloaded * 100) / total).toInt().coerceIn(0, 100)
-                            } else 0
-                            _downloadProgress.value = DownloadProgress(song.id, percent)
-                        }
-                        output.flush()
-                    }
-                }
-            }
-
-            _downloadProgress.value = DownloadProgress(song.id, 100, true)
-            Result.success(outFile)
         } catch (e: Exception) {
-            _downloadProgress.value = DownloadProgress(song.id, 0, false, e.message)
             Result.failure(e)
         }
     }
 
-    fun clearDownloadProgress() {
-        _downloadProgress.value = null
+    /** On-demand fetch via Cloudflare tunnel when song is not in catalog */
+    suspend fun searchRemote(query: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val q = URLEncoder.encode(query, "UTF-8")
+            val base = SupabaseConfig.musicApiBase.trimEnd('/')
+            val url = "$base/api/search?q=$q"
+            val req = Request.Builder().url(url).get().build()
+            client.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) return@withContext Result.failure(Exception("HTTP ${resp.code}: $body"))
+                Result.success(body)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
