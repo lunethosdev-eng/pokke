@@ -12,18 +12,14 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun LibraryScreen() {
     Box(
-        modifier = Modifier
+        Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp),
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Biblioteca",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Text("Biblioteca", style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
             Text(
                 "Canciones descargadas, playlists y favoritos aparecerán aquí.",
