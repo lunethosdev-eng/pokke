@@ -5,7 +5,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -22,13 +21,12 @@ private val LightPastelScheme = lightColorScheme(
     onBackground = PokkeOnSurface,
     onSurface = PokkeOnSurface,
     onSurfaceVariant = PokkeOnSurfaceVariant,
-    error = PokkeError
+    error = PokkeError,
+    outline = PokkeOutline
 )
 
 @Composable
-fun PokkeTheme(
-    content: @Composable () -> Unit
-) {
+fun PokkeTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
