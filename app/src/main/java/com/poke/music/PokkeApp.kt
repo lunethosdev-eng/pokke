@@ -8,36 +8,14 @@ import android.os.Build
 class PokkeApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannels()
-    }
-
-    private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val musicChannel = NotificationChannel(
-                CHANNEL_MUSIC,
-                "Reproducción de música",
+            val channel = NotificationChannel(
+                "pokke_playback",
+                "Reproducción",
                 NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Controles de reproducción en segundo plano"
-                setShowBadge(false)
-            }
-
-            val generalChannel = NotificationChannel(
-                CHANNEL_GENERAL,
-                "Notificaciones generales",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Anuncios y mensajes"
-            }
-
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(musicChannel)
-            manager.createNotificationChannel(generalChannel)
+            )
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(channel)
         }
-    }
-
-    companion object {
-        const val CHANNEL_MUSIC = "pokke_music"
-        const val CHANNEL_GENERAL = "pokke_general"
     }
 }
