@@ -10,194 +10,77 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.poke.music.util.BadgeHelper
+import com.poke.music.data.repository.AuthRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: () -> Unit,
-    onNavigateToLogin: () -> Unit
+    authRepository: AuthRepository,
+    onSuccess: () -> Unit,
+    onGoLogin: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var displayName by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
-    var language by remember { mutableStateOf("es") }
     var ownerCode by remember { mutableStateOf("") }
-    var showOwnerCode by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    Box(
-        modifier = Modifier
+    Column(
+        Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF0A0A0A), Color(0xFF1A0A2E), Color(0xFF0A0A0A))
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(48.dp))
+        Text("Crear cuenta", style = MaterialTheme.typography.headlineLarge)
+        Text("Pokke", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(28.dp))
 
-            Text(
-                text = "Crear cuenta",
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White
-            )
-            Text(
-                text = "Únete a Pokke",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.7f)
-            )
+        OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Usuario") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Contraseña") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(value = ownerCode, onValueChange = { ownerCode = it }, label = { Text("Código Owner (opcional)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
 
-            Spacer(Modifier.height(32.dp))
-
-            AuthField(value = displayName, onValueChange = { displayName = it }, label = "Nombre para mostrar")
-            Spacer(Modifier.height(12.dp))
-            AuthField(value = username, onValueChange = { username = it }, label = "Usuario (único)")
-            Spacer(Modifier.height(12.dp))
-            AuthField(
-                value = email,
-                onValueChange = { email = it },
-                label = "Correo electrónico",
-                keyboardType = KeyboardType.Email
-            )
-            Spacer(Modifier.height(12.dp))
-            AuthField(
-                value = password,
-                onValueChange = { password = it },
-                label = "Contraseña",
-                isPassword = true
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            Text("Idioma / Language", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelLarge)
+        error?.let {
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilterChip(
-                    selected = language == "es",
-                    onClick = { language = "es" },
-                    label = { Text("Español") }
-                )
-                FilterChip(
-                    selected = language == "en",
-                    onClick = { language = "en" },
-                    label = { Text("English") }
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Checkbox(
-                    checked = showOwnerCode,
-                    onCheckedChange = { showOwnerCode = it }
-                )
-                Text("Tengo código especial", color = Color.White.copy(alpha = 0.8f))
-            }
-
-            if (showOwnerCode) {
-                Spacer(Modifier.height(8.dp))
-                AuthField(
-                    value = ownerCode,
-                    onValueChange = { ownerCode = it },
-                    label = "Código especial"
-                )
-            }
-
-            if (error != null) {
-                Spacer(Modifier.height(8.dp))
-                Text(error!!, color = MaterialTheme.colorScheme.error)
-            }
-
-            Spacer(Modifier.height(28.dp))
-
-            Button(
-                onClick = {
-                    isLoading = true
-                    error = null
-                    // Validate
-                    when {
-                        displayName.isBlank() || username.isBlank() || email.isBlank() || password.isBlank() -> {
-                            error = "Completa todos los campos"
-                            isLoading = false
-                        }
-                        password.length < 6 -> {
-                            error = "La contraseña debe tener al menos 6 caracteres"
-                            isLoading = false
-                        }
-                        else -> {
-                            val badge = BadgeHelper.resolveBadge(email, if (showOwnerCode) ownerCode else null)
-                            // TODO: real Supabase signUp + insert profile with badge + language
-                            // For now just succeed
-                            onRegisterSuccess()
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
-                } else {
-                    Text("Crear cuenta")
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            TextButton(onClick = onNavigateToLogin) {
-                Text("¿Ya tienes cuenta? Inicia sesión", color = Color.White.copy(alpha = 0.8f))
-            }
-
-            Spacer(Modifier.height(40.dp))
+            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
-    }
-}
 
-@Composable
-private fun AuthField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    isPassword: Boolean = false
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = true,
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
-            focusedLabelColor = MaterialTheme.colorScheme.primary,
-            unfocusedLabelColor = Color.White.copy(alpha = 0.6f),
-            cursorColor = MaterialTheme.colorScheme.primary,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White
-        )
-    )
+        Spacer(Modifier.height(24.dp))
+        Button(
+            onClick = {
+                loading = true
+                error = null
+                scope.launch {
+                    authRepository.register(
+                        email.trim(),
+                        password,
+                        username.trim().ifBlank { email.substringBefore("@") },
+                        ownerCode.ifBlank { null }
+                    ).fold(
+                        onSuccess = { onSuccess() },
+                        onFailure = { error = it.message }
+                    )
+                    loading = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = !loading && email.isNotBlank() && password.length >= 6,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            if (loading) CircularProgressIndicator(Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+            else Text("Registrarse")
+        }
+        TextButton(onClick = onGoLogin) { Text("Ya tengo cuenta") }
+    }
 }
